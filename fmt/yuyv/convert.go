@@ -35,7 +35,7 @@ func ToRGBA(dst *image.RGBA, r image.Rectangle, src *Image, p image.Point) {
 		n := r.Dx()
 		if p.X&1 != 0 {
 			cb := int32(s[1]) - 128
-			y2 := int32(s[2]) * 0x010100
+			y2 := int32(s[2]) * 0x010101
 			cr := int32(s[3]) - 128
 			d[0] = clamp(y2 + 91881*cr)
 			d[1] = clamp(y2 - 22554*cb - 46802*cr)
@@ -46,9 +46,9 @@ func ToRGBA(dst *image.RGBA, r image.Rectangle, src *Image, p image.Point) {
 			n--
 		}
 		for x := 0; x < n; x += 2 {
-			y1 := int32(s[2*x+0]) * 0x010100
+			y1 := int32(s[2*x+0]) * 0x010101
 			cb := int32(s[2*x+1]) - 128
-			y2 := int32(s[2*x+2]) * 0x010100
+			y2 := int32(s[2*x+2]) * 0x010101
 			cr := int32(s[2*x+3]) - 128
 			d[4*x+0] = clamp(y1 + 91881*cr)
 			d[4*x+1] = clamp(y1 - 22554*cb - 46802*cr)
@@ -89,30 +89,30 @@ func ToGray(dst *image.Gray, r image.Rectangle, src *Image, p image.Point) {
 		n := r.Dx()
 		if p.X&1 != 0 {
 			cb := int32(s[1]) - 128
-			y2 := int32(s[2]) * 0x010100
+			y2 := int32(s[2]) * 0x010101
 			cr := int32(s[3]) - 128
 			r := clamp2(y2 + 91881*cr)
 			g := clamp2(y2 - 22554*cb - 46802*cr)
 			b := clamp2(y2 + 116130*cb)
-			d[0] = uint8(((299*r + 587*g + 114*b + 500) / 1000) >> 8)
+			d[0] = uint8((19595*r + 38470*g + 7471*b + 1<<15) >> 24)
 			s = s[4:]
 			d = d[1:]
 			n--
 		}
 		for x := 0; x < n; x += 2 {
-			y1 := int32(s[2*x+0]) * 0x010100
+			y1 := int32(s[2*x+0]) * 0x010101
 			cb := int32(s[2*x+1]) - 128
-			y2 := int32(s[2*x+2]) * 0x010100
+			y2 := int32(s[2*x+2]) * 0x010101
 			cr := int32(s[2*x+3]) - 128
 			r := clamp2(y1 + 91881*cr)
 			g := clamp2(y1 - 22554*cb - 46802*cr)
 			b := clamp2(y1 + 116130*cb)
-			d[x] = uint8(((299*r + 587*g + 114*b + 500) / 1000) >> 8)
+			d[x] = uint8((19595*r + 38470*g + 7471*b + 1<<15) >> 24)
 			if x < n-1 {
 				r := clamp2(y2 + 91881*cr)
 				g := clamp2(y2 - 22554*cb - 46802*cr)
 				b := clamp2(y2 + 116130*cb)
-				d[x+1] = uint8(((299*r + 587*g + 114*b + 500) / 1000) >> 8)
+				d[x+1] = uint8((19595*r + 38470*g + 7471*b + 1<<15) >> 24)
 			}
 		}
 	}
@@ -122,7 +122,7 @@ func clamp2(x int32) int32 {
 	if uint32(x)&0xff000000 == 0 {
 		return (x >> 8) & 0xffff
 	} else {
-		return ^(x >> 31)
+		return ^(x >> 31) & 0xffff
 	}
 }
 
