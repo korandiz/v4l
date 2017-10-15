@@ -229,7 +229,11 @@ func stream(cam *v4l.Device) {
 		for _, clt := range clients {
 			select {
 			case clt.ch <- b:
-			case <-clt.ch:
+			default:
+				select {
+				case <-clt.ch:
+				default:
+				}
 				clt.ch <- b
 			}
 		}
