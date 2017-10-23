@@ -202,6 +202,7 @@ func handleInterrupt() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)
 	<-ch
+	log.Println("Stopping...")
 	mu.Lock()
 	stopped = true
 	if len(clients) == 0 {
@@ -221,11 +222,17 @@ func stream(cam *v4l.Device) {
 		buf, err := cam.Capture()
 		if err != nil {
 			log.Println("Capture:", err)
+			proc, _ := os.FindProcess(os.Getpid())
+			proc.Signal(os.Interrupt)
 			break
 		}
 		b := make([]byte, buf.Size())
 		buf.ReadAt(b, 0)
 		mu.Lock()
+		if stopped {
+			mu.Unlock()
+			break
+		}
 		for _, clt := range clients {
 			select {
 			case clt.ch <- b:
@@ -235,8 +242,6 @@ func stream(cam *v4l.Device) {
 		}
 		mu.Unlock()
 	}
-	proc, _ := os.FindProcess(os.Getpid())
-	proc.Signal(os.Interrupt)
 }
 
 func serveHTTP(w http.ResponseWriter, r *http.Request) {
