@@ -60,6 +60,7 @@ const (
 
 const (
 	v4l_ctrlFlagDisabled = 0x0001
+	v4l_ctrlFlagNextCtrl = 0x80000000
 )
 
 const (

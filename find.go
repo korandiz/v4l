@@ -32,7 +32,7 @@ func FindDevices() []DeviceInfo {
 		dInfos []DeviceInfo
 	)
 	filepath.Walk("/dev", func(path string, fInfo os.FileInfo, _ error) error {
-		if fInfo.Mode()&os.ModeCharDevice == 0 {
+		if fInfo == nil || fInfo.Mode()&os.ModeCharDevice == 0 {
 			return nil
 		}
 		var stat syscall.Stat_t

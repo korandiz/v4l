@@ -163,6 +163,10 @@ type ControlInfo struct {
 	}
 }
 
+// errBadControl is returned by Device.controlInfo when the control is disabled
+// or of unsupported type.
+const errBadControl = Error("control disabled or of unsupported type")
+
 // Open opens the capture device named by path. If the file is not a capture
 // device, it fails with ErrWrongDevice.
 func Open(path string) (*Device, error) {
@@ -557,19 +561,53 @@ func (d *Device) ListConfigs() ([]DeviceConfig, error) {
 
 // ControlInfo returns information about a control.
 func (d *Device) ControlInfo(cid uint32) (ControlInfo, error) {
-	info, _, err := d.controlInfo(cid)
+	info, err := d.controlInfo(cid)
+	if err == errBadControl {
+		// Pretend the control does not exist.
+		err = syscall.EINVAL
+	}
 	return info, err
 }
 
 // ListControls returns the ControlInfo for every control the device has.
 func (d *Device) ListControls() ([]ControlInfo, error) {
+	var (
+		lastCID uint32
+		infos   []ControlInfo
+	)
+
+	for {
+		info, err := d.controlInfo(lastCID | v4l_ctrlFlagNextCtrl)
+		switch err {
+		case nil:
+			infos = append(infos, info)
+			lastCID = info.CID
+		case errBadControl:
+			// Pretend the control does not exist.
+			lastCID = info.CID
+		case syscall.EINVAL:
+			if lastCID == 0 {
+				// No support for v4l_ctrlFlagNextCtrl.
+				// Fall back to legacy method.
+				return d.listControlsLegacy()
+			}
+			return infos, nil
+		default:
+			return nil, err
+		}
+	}
+}
+
+// listControlsLegacy enumerates all controls the device has by querying them
+// one-by-one rather than using the v4l_ctrlFlagNextCtrl flag.
+func (d *Device) listControlsLegacy() ([]ControlInfo, error) {
 	var infos []ControlInfo
 
 	// Standard controls.
 	for cid := uint32(v4l_cidBase); cid < v4l_cidLastp1; cid++ {
-		info, _, err := d.controlInfo(cid)
+		info, err := d.controlInfo(cid)
 		if err != nil {
-			if err == syscall.EINVAL {
+			if err == syscall.EINVAL || err == errBadControl {
 				continue
 			}
 			return nil, err
@@ -579,15 +617,15 @@ func (d *Device) ListControls() ([]ControlInfo, error) {
 
 	// Custom controls.
 	for cid := uint32(v4l_cidPrivateBase); ; cid++ {
-		info, err1, err2 := d.controlInfo(cid)
-		if err1 != nil {
-			if err1 == syscall.EINVAL {
+		info, err := d.controlInfo(cid)
+		if err != nil {
+			if err == syscall.EINVAL {
 				break
 			}
-			return nil, err1
-		}
-		if err2 != nil {
-			continue
+			if err == errBadControl {
+				continue
+			}
+			return nil, err
 		}
 		infos = append(infos, info)
 	}
@@ -595,20 +633,16 @@ func (d *Device) ListControls() ([]ControlInfo, error) {
 	return infos, nil
 }
 
-// controlInfo is the method which actually queries information about a control.
-// The first error is the one reported by the kernel, while the second one is
-// what should be reported to the user. When the former is nil, the latter may
-// still be non-nil if the control is marked as disabled or is of unsupported
-// type.
-func (d *device) controlInfo(cid uint32) (ControlInfo, error, error) {
+// controlInfo returns information about a control. For disabled contorls and
+// contorls of unsupported type it fails with errBadControl.
+func (d *device) controlInfo(cid uint32) (ControlInfo, error) {
 	qc := v4l_queryctrl{id: cid}
 	if err := ioctl_queryctrl(d.fd, &qc); err != nil {
-		return ControlInfo{}, err, err
+		return ControlInfo{}, err
 	}
 
 	if qc.flags&v4l_ctrlFlagDisabled != 0 {
-		// If the control is disabled, we pretend it doesn't exist.
-		return ControlInfo{}, nil, syscall.EINVAL
+		return ControlInfo{}, errBadControl
 	}
 
 	info := ControlInfo{
@@ -630,8 +664,7 @@ func (d *device) controlInfo(cid uint32) (ControlInfo, error, error) {
 	case v4l_ctrlTypeButton:
 		info.Type = "button"
 	default:
-		// Unsupported type, pretend the control doesn't exist.
-		return ControlInfo{}, nil, syscall.EINVAL
+		return ControlInfo{}, errBadControl
 	}
 
 	if qc.typ == v4l_ctrlTypeMenu {
@@ -644,7 +677,7 @@ func (d *device) controlInfo(cid uint32) (ControlInfo, error, error) {
 				if err == syscall.EINVAL {
 					continue
 				}
-				return ControlInfo{}, err, err
+				return ControlInfo{}, err
 			}
 			opt := struct {
 				Value int32
@@ -657,7 +690,7 @@ func (d *device) controlInfo(cid uint32) (ControlInfo, error, error) {
 		}
 	}
 
-	return info, nil, nil
+	return info, nil
 }
 
 // GetControl returns the current value of a control.
