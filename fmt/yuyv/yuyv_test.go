@@ -99,6 +99,7 @@ func TestImage(t *testing.T) {
 }
 
 func TestToRGBA(t *testing.T) {
+	t.Parallel()
 	r0 := image.Rect(-2, -6, 14, 10)
 	for L := r0.Min.X; L < r0.Max.X; L++ {
 		for T := r0.Min.Y; T < r0.Max.Y; T++ {
@@ -132,6 +133,7 @@ func TestToRGBA(t *testing.T) {
 }
 
 func TestToGray(t *testing.T) {
+	t.Parallel()
 	r0 := image.Rect(-2, -6, 14, 10)
 	for L := r0.Min.X; L < r0.Max.X; L++ {
 		for T := r0.Min.Y; T < r0.Max.Y; T++ {
@@ -165,6 +167,7 @@ func TestToGray(t *testing.T) {
 }
 
 func TestToYCbCr(t *testing.T) {
+	t.Parallel()
 	r0 := image.Rect(-2, -6, 14, 10)
 	for L := r0.Min.X; L < r0.Max.X; L++ {
 		for T := r0.Min.Y; T < r0.Max.Y; T++ {
