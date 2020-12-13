@@ -400,7 +400,7 @@ func (d *Device) Capture() (*Buffer, error) {
 	if err := ioctl_dqbuf(d.fd, &b); err != nil {
 		return nil, err
 	}
-	d.buffers[b.index] = d.buffers[b.index][:b.length]
+	d.buffers[b.index] = d.buffers[b.index][:b.bytesused]
 	d.bufIndex = b.index
 
 	return &Buffer{d.device, d.nCaptures, 0, b.sequence}, nil
