@@ -1,4 +1,4 @@
 github.com/gotk3/gotk3 v0.4.0 h1:TIuhyQitGeRTxOQIV3AJlYtEWWJpC74JHwAIsxlH8MU=
 github.com/gotk3/gotk3 v0.4.0/go.mod h1:Eew3QBwAOBTrfFFDmsDE5wZWbcagBL1NUslj1GhRveo=
-github.com/korandiz/v4l v1.0.0 h1:Bi9LdmJ3PYcRQeRZ6sTDB4uIL6QM2XeH/y4bMNgd3uU=
-github.com/korandiz/v4l v1.0.0/go.mod h1:pftxPG7hkuUgepioAY6PAE81mShaVjzd95X/WF4Izus=
+github.com/korandiz/v4l v1.0.2 h1:M7Bw7PGD/eUSPapkCW29Gfws56PUolKIw5BrB50BQTE=
+github.com/korandiz/v4l v1.0.2/go.mod h1:pftxPG7hkuUgepioAY6PAE81mShaVjzd95X/WF4Izus=
