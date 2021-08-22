@@ -128,8 +128,7 @@ func (w *DevicePickerWindow) initWidgets() {
 	w.window.SetPosition(gtk.WIN_POS_CENTER)
 	w.window.SetSizeRequest(640, 320)
 	w.window.SetBorderWidth(6)
-	_, err = w.window.Connect("destroy", w.windowDestroyed)
-	fatal(err)
+	w.window.Connect("destroy", w.windowDestroyed)
 
 	grid1, err := gtk.GridNew()
 	fatal(err)
@@ -150,8 +149,7 @@ func (w *DevicePickerWindow) initWidgets() {
 
 	w.deviceList, err = gtk.ListBoxNew()
 	fatal(err)
-	_, err = w.deviceList.Connect("selected-rows-changed", w.deviceSelected)
-	fatal(err)
+	w.deviceList.Connect("selected-rows-changed", w.deviceSelected)
 	scrolled.Add(w.deviceList)
 
 	frame, err = gtk.FrameNew("Configurations:")
@@ -166,8 +164,7 @@ func (w *DevicePickerWindow) initWidgets() {
 
 	w.configList, err = gtk.ListBoxNew()
 	fatal(err)
-	_, err = w.configList.Connect("selected-rows-changed", w.configSelected)
-	fatal(err)
+	w.configList.Connect("selected-rows-changed", w.configSelected)
 	scrolled.Add(w.configList)
 
 	grid2, err := gtk.GridNew()
@@ -213,8 +210,7 @@ func (w *DevicePickerWindow) initWidgets() {
 
 	button, err := gtk.ButtonNewWithLabel("Start")
 	fatal(err)
-	_, err = button.Connect("clicked", w.startClicked)
-	fatal(err)
+	button.Connect("clicked", w.startClicked)
 	box.Add(button)
 
 	w.window.ShowAll()
@@ -375,8 +371,7 @@ func (w *DevicePickerWindow) modalWarning(msg string) {
 		gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_OK, msg)
 	dlg.SetTitle("Error")
 	dlg.SetPosition(gtk.WIN_POS_CENTER_ON_PARENT)
-	_, err := dlg.Connect("response", dlg.Destroy)
-	fatal(err)
+	dlg.Connect("response", dlg.Destroy)
 	dlg.ShowAll()
 }
 
@@ -418,8 +413,7 @@ func (w *VideoCaptureWindow) initWidgets() {
 	w.window.SetIconName("camera-web")
 	w.window.SetPosition(gtk.WIN_POS_CENTER)
 	w.window.SetResizable(false)
-	_, err = w.window.Connect("destroy", w.windowDestroyed)
-	fatal(err)
+	w.window.Connect("destroy", w.windowDestroyed)
 
 	w.pixbuf, err = gdk.PixbufNew(gdk.COLORSPACE_RGB, true, 8,
 		w.DeviceConfig.Width, w.DeviceConfig.Height)
@@ -452,10 +446,8 @@ func (w *VideoCaptureWindow) modalError(prefix string, err error) {
 		gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_CLOSE, msg)
 	dlg.SetTitle("Error")
 	dlg.SetPosition(gtk.WIN_POS_CENTER_ON_PARENT)
-	_, err1 := dlg.Connect("response", dlg.Destroy)
-	fatal(err1)
-	_, err1 = dlg.Connect("destroy", w.window.Destroy)
-	fatal(err1)
+	dlg.Connect("response", dlg.Destroy)
+	dlg.Connect("destroy", w.window.Destroy)
 	dlg.ShowAll()
 }
 
@@ -525,19 +517,18 @@ func (c *capture) captureFrames(path string, config v4l.DeviceConfig) {
 
 func (c *capture) modalError(prefix string, err error) {
 	ch := make(chan struct{})
-	_, err1 := glib.IdleAdd(func() {
+	glib.IdleAdd(func() {
 		if !c.cancelled {
 			c.w.modalError(prefix, err)
 		}
 		ch <- struct{}{}
 	})
-	fatal(err1)
 	<-ch
 }
 
 func (c *capture) updateImage() bool {
 	ch := make(chan bool)
-	_, err := glib.IdleAdd(func() {
+	glib.IdleAdd(func() {
 		if c.cancelled {
 			ch <- false
 			return
@@ -552,7 +543,6 @@ func (c *capture) updateImage() bool {
 		w.image.SetFromPixbuf(c.w.pixbuf)
 		ch <- true
 	})
-	fatal(err)
 	return <-ch
 }
 
@@ -598,8 +588,7 @@ func (w *ControlPanelWindow) initWidgets() {
 	w.window.SetPosition(gtk.WIN_POS_CENTER)
 	w.window.SetBorderWidth(6)
 	w.window.SetSizeRequest(640, 0)
-	_, err = w.window.Connect("destroy", w.windowDestroyed)
-	fatal(err)
+	w.window.Connect("destroy", w.windowDestroyed)
 	w.window.ShowAll()
 }
 
@@ -669,12 +658,11 @@ func (w *ControlPanelWindow) createIntControl(parent *gtk.Container, ctrl v4l.Co
 	fatal(err)
 	label.SetHAlign(gtk.ALIGN_END)
 	frame.Add(label)
-	_, err = scale.Connect("value-changed", func() {
+	scale.Connect("value-changed", func() {
 		value := int32(scale.GetValue() + 0.5)
 		w.device.SetControl(ctrl.CID, value)
 		w.updateControls()
 	})
-	fatal(err)
 	return func(value int32) {
 		scale.SetValue(float64(value))
 		label.SetLabel(strconv.Itoa(int(value)))
@@ -687,7 +675,7 @@ func (w *ControlPanelWindow) createBoolControl(parent *gtk.Container, ctrl v4l.C
 	checkButton.SetHExpand(false)
 	checkButton.SetVExpand(false)
 	parent.Add(checkButton)
-	_, err = checkButton.Connect("toggled", func() {
+	checkButton.Connect("toggled", func() {
 		value := int32(0)
 		if checkButton.GetActive() {
 			value = 1
@@ -695,7 +683,6 @@ func (w *ControlPanelWindow) createBoolControl(parent *gtk.Container, ctrl v4l.C
 		w.device.SetControl(ctrl.CID, value)
 		w.updateControls()
 	})
-	fatal(err)
 	return func(value int32) {
 		active := false
 		if value != 0 {
@@ -712,12 +699,11 @@ func (w *ControlPanelWindow) createEnumControl(parent *gtk.Container, ctrl v4l.C
 	for _, opt := range ctrl.Options {
 		comboBox.Append("", opt.Name)
 	}
-	_, err = comboBox.Connect("changed", func() {
+	comboBox.Connect("changed", func() {
 		value := ctrl.Options[comboBox.GetActive()].Value
 		w.device.SetControl(ctrl.CID, value)
 		w.updateControls()
 	})
-	fatal(err)
 	return func(value int32) {
 		for i, opt := range ctrl.Options {
 			if opt.Value == value {
@@ -732,11 +718,10 @@ func (w *ControlPanelWindow) createButtonControl(parent *gtk.Container, ctrl v4l
 	button, err := gtk.ButtonNewWithLabel(ctrl.Name)
 	fatal(err)
 	parent.Add(button)
-	_, err = button.Connect("clicked", func() {
+	button.Connect("clicked", func() {
 		w.device.SetControl(ctrl.CID, 0)
 		w.updateControls()
 	})
-	fatal(err)
 	return nil
 }
 
@@ -773,10 +758,8 @@ func (w *ControlPanelWindow) modalError(prefix string, err error) {
 		gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_CLOSE, msg)
 	dlg.SetTitle("Error")
 	dlg.SetPosition(gtk.WIN_POS_CENTER_ON_PARENT)
-	_, err1 := dlg.Connect("response", dlg.Destroy)
-	fatal(err1)
-	_, err1 = dlg.Connect("destroy", w.window.Destroy)
-	fatal(err1)
+	dlg.Connect("response", dlg.Destroy)
+	dlg.Connect("destroy", w.window.Destroy)
 	dlg.ShowAll()
 }
 
@@ -791,8 +774,7 @@ func newTicker(interval uint, callback func()) *ticker {
 		interval: interval,
 		callback: callback,
 	}
-	_, err := glib.TimeoutAdd(interval, t.handler)
-	fatal(err)
+	glib.TimeoutAdd(interval, t.handler)
 	return t
 }
 
@@ -800,13 +782,12 @@ func (t *ticker) cancel() {
 	t.cancelled = true
 }
 
-func (t *ticker) handler() {
+func (t *ticker) handler() bool {
 	if t.cancelled {
-		return
+		return false
 	}
 	t.callback()
-	_, err := glib.TimeoutAdd(t.interval, t.handler)
-	fatal(err)
+	return true
 
 }
 
