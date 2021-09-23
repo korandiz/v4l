@@ -45,5 +45,8 @@ func (f Frac) Reduce() Frac {
 	for r != 0 {
 		gcd, r = r, gcd%r
 	}
+	if gcd == 0 {
+		gcd = 1
+	}
 	return Frac{f.N / gcd, f.D / gcd}
 }
