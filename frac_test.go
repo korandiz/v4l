@@ -74,6 +74,7 @@ func TestFrac_Reduce(t *testing.T) {
 		{Frac{239322993, 54665710}, Frac{239322993, 54665710}},
 		{Frac{223092870, 1078282205}, Frac{6, 29}},
 		{Frac{1078282205, 223092870}, Frac{29, 6}},
+		{Frac{0, 0}, Frac{0, 0}},
 	}
 
 	for _, y := range x {
