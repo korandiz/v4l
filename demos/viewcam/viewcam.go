@@ -659,8 +659,13 @@ func (w *ControlPanelWindow) createIntControl(parent *gtk.Container, ctrl v4l.Co
 	label.SetHAlign(gtk.ALIGN_END)
 	frame.Add(label)
 	scale.Connect("value-changed", func() {
-		value := int32(scale.GetValue() + 0.5)
-		w.device.SetControl(ctrl.CID, value)
+		value := scale.GetValue()
+		if value >= 0 {
+			value += 0.5
+		} else {
+			value -= 0.5
+		}
+		w.device.SetControl(ctrl.CID, int32(value))
 		w.updateControls()
 	})
 	return func(value int32) {
