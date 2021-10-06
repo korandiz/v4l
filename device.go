@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+//go:build linux
 // +build linux
 
 // Package v4l is a facade to the Video4Linux video capture interface.

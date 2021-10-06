@@ -1,5 +1,5 @@
-// +build linux
-// +build arm
+//go:build linux && arm
+// +build linux,arm
 
 /////////////////////////////////////////////////////
 //                                                 //
