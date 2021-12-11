@@ -484,8 +484,7 @@ func (d *Device) BufferInfo() (BufferInfo, error) {
 	return info, nil
 }
 
-// ListConfigs returns a slice of all valid configurations of the device. It
-// may fail with ErrUnsupported.
+// ListConfigs returns the configurations supported by the device.
 func (d *Device) ListConfigs() ([]DeviceConfig, error) {
 	var cfgs []DeviceConfig
 	for fmt := 0; ; fmt++ {
@@ -499,43 +498,23 @@ func (d *Device) ListConfigs() ([]DeviceConfig, error) {
 			}
 			break
 		}
-		for frmsize := 0; ; frmsize++ {
-			fs := v4l_frmsizeenum{
-				index:       uint32(frmsize),
-				pixelFormat: fd.pixelformat,
+		sizes, err := d.enumFrameSizes(fd.pixelformat)
+		if err != nil {
+			return nil, err
+		}
+		for _, sz := range sizes {
+			ivals, err := d.enumFrameIvals(fd.pixelformat, sz.width, sz.height)
+			if err != nil {
+				return nil, err
 			}
-			if err := ioctl_enumFramesizes(d.fd, &fs); err != nil {
-				if err != syscall.EINVAL {
-					return nil, err
-				}
-				break
-			}
-			if fs.typ != v4l_frmsizeTypeDiscrete {
-				return nil, ErrUnsupported
-			}
-			for frmival := 0; ; frmival++ {
-				fi := v4l_frmivalenum{
-					index:       uint32(frmival),
-					pixelFormat: fd.pixelformat,
-					width:       fs.discrete.width,
-					height:      fs.discrete.height,
-				}
-				if err := ioctl_enumFrameintervals(d.fd, &fi); err != nil {
-					if err != syscall.EINVAL {
-						return nil, err
-					}
-					break
-				}
-				if fi.typ != v4l_frmivalTypeDiscrete {
-					return nil, ErrUnsupported
-				}
+			for _, ival := range ivals {
 				cfg := DeviceConfig{
 					Format: fd.pixelformat,
-					Width:  int(fs.discrete.width),
-					Height: int(fs.discrete.height),
+					Width:  int(sz.width),
+					Height: int(sz.height),
 					FPS: Frac{
-						fi.discrete.denominator,
-						fi.discrete.numerator,
+						ival.denominator,
+						ival.numerator,
 					}.Reduce(),
 				}
 				cfgs = append(cfgs, cfg)
@@ -558,6 +537,142 @@ func (d *Device) ListConfigs() ([]DeviceConfig, error) {
 	cfgs = cfgs[:n]
 
 	return cfgs, nil
+}
+
+// enumFrameSizes returns the supported frame sizes. If the device does not
+// enumerate a discrete set of frame sizes, then a few common ones within the
+// supported range are returned.
+func (d *Device) enumFrameSizes(fmt uint32) ([]v4l_frmsizeDiscrete, error) {
+	var (
+		sizes []v4l_frmsizeDiscrete
+		fs    v4l_frmsizeenum
+	)
+
+	// Try to enumerate discrete frame sizes.
+loop:
+	for index := 0; ; index++ {
+		fs = v4l_frmsizeenum{
+			index:       uint32(index),
+			pixelFormat: fmt,
+		}
+		if err := ioctl_enumFramesizes(d.fd, &fs); err != nil {
+			if err != syscall.EINVAL {
+				return nil, err
+			}
+			return sizes, nil
+		}
+		switch fs.typ {
+		case v4l_frmsizeTypeDiscrete:
+			sizes = append(sizes, fs.discrete)
+		case v4l_frmsizeTypeContinuous, v4l_frmsizeTypeStepwise:
+			break loop
+		default:
+			return nil, nil
+		}
+	}
+
+	// Fall back to a default list.
+	fss := fs.stepwise
+	for _, fsd := range defaultFrameSizes {
+		if fsd.width < fss.minWidth || fsd.width > fss.maxWidth ||
+			(fsd.width-fss.minWidth)%fss.stepWidth != 0 {
+			continue
+		}
+		if fsd.height < fss.minHeight || fsd.height > fss.maxHeight ||
+			(fsd.height-fss.minHeight)%fss.stepHeight != 0 {
+			continue
+		}
+		sizes = append(sizes, fsd)
+	}
+
+	sizes = append(sizes, v4l_frmsizeDiscrete{fss.maxWidth, fss.maxHeight})
+
+	return sizes, nil
+}
+
+// defaultFrameSizes lists a few common resolutions.
+var defaultFrameSizes = []v4l_frmsizeDiscrete{
+	{160, 120},
+	{176, 144},
+	{320, 180},
+	{320, 240},
+	{352, 288},
+	{640, 360},
+	{640, 480},
+	{800, 600},
+	{960, 540},
+	{1024, 768},
+	{1280, 720},
+	{1280, 960},
+	{1600, 1200},
+	{1920, 1080},
+	{3840, 2160},
+	{7680, 4320},
+}
+
+// enumFrameIvals returns the supported frame intervals. If the device does not
+// enumerate a discrete set of frame intervals, then a few common ones within
+// the supported range are returned.
+func (d *Device) enumFrameIvals(fmt, w, h uint32) ([]v4l_fract, error) {
+	var (
+		ivals []v4l_fract
+		fi    v4l_frmivalenum
+	)
+
+	// Try to enumerate discrete frame intervals.
+loop:
+	for index := 0; ; index++ {
+		fi = v4l_frmivalenum{
+			index:       uint32(index),
+			pixelFormat: fmt,
+			width:       w,
+			height:      h,
+		}
+		if err := ioctl_enumFrameintervals(d.fd, &fi); err != nil {
+			if err != syscall.EINVAL {
+				return nil, err
+			}
+			return ivals, nil
+		}
+		switch fi.typ {
+		case v4l_frmivalTypeDiscrete:
+			ivals = append(ivals, fi.discrete)
+		case v4l_frmivalTypeContinuous, v4l_frmivalTypeStepwise:
+			break loop
+		default:
+			return nil, nil
+		}
+	}
+
+	// Fall back to a default list.
+	var (
+		fis   = fi.stepwise
+		min_n = fis.min.numerator
+		min_d = fis.min.denominator
+		max_n = fis.max.numerator
+		max_d = fis.max.denominator
+	)
+	for _, fid := range defaultFrameIntervals {
+		if fid.numerator*min_d < min_n*fid.denominator ||
+			fid.numerator*max_d > max_n*fid.denominator {
+			continue
+		}
+		ivals = append(ivals, fid)
+	}
+
+	ivals = append(ivals, fis.min)
+
+	return ivals, nil
+}
+
+// defaultFrameIntervals lists a few common frame intervals.
+var defaultFrameIntervals = []v4l_fract{
+	{1, 5},
+	{1, 10},
+	{1, 15},
+	{1, 25},
+	{1, 30},
+	{1, 60},
 }
 
 // ControlInfo returns information about a control.
