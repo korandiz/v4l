@@ -757,10 +757,6 @@ func (d *device) controlInfo(cid uint32) (ControlInfo, error) {
 		return ControlInfo{}, err
 	}
 
-	if qc.flags&v4l_ctrlFlagDisabled != 0 {
-		return ControlInfo{}, errBadControl
-	}
-
 	info := ControlInfo{
 		CID:     qc.id,
 		Name:    qc.name,
@@ -768,6 +764,10 @@ func (d *device) controlInfo(cid uint32) (ControlInfo, error) {
 		Max:     qc.maximum,
 		Step:    qc.step,
 		Default: qc.defaultValue,
+	}
+
+	if qc.flags&v4l_ctrlFlagDisabled != 0 {
+		return info, errBadControl
 	}
 
 	switch qc.typ {
@@ -780,7 +780,7 @@ func (d *device) controlInfo(cid uint32) (ControlInfo, error) {
 	case v4l_ctrlTypeButton:
 		info.Type = "button"
 	default:
-		return ControlInfo{}, errBadControl
+		return info, errBadControl
 	}
 
 	if qc.typ == v4l_ctrlTypeMenu {
