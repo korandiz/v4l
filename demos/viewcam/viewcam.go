@@ -586,8 +586,7 @@ func (w *ControlPanelWindow) initWidgets() {
 	w.window.SetTitle("Control Panel")
 	w.window.SetIconName("camera-web")
 	w.window.SetPosition(gtk.WIN_POS_CENTER)
-	w.window.SetBorderWidth(6)
-	w.window.SetSizeRequest(640, 0)
+	w.window.SetSizeRequest(640, 320)
 	w.window.Connect("destroy", w.windowDestroyed)
 	w.window.ShowAll()
 }
@@ -604,13 +603,31 @@ func (w *ControlPanelWindow) initControls() {
 		w.modalError("ListControls", err)
 		return
 	}
-	grid, err := gtk.GridNew()
+	notebook, err := gtk.NotebookNew()
 	fatal(err)
-	grid.SetColumnSpacing(12)
-	grid.SetRowSpacing(6)
-	grid.SetRowHomogeneous(true)
-	w.window.Add(grid)
+	notebook.SetScrollable(true)
+	notebook.SetShowBorder(false)
+	w.window.Add(notebook)
+	tabs := make(map[uint32]*gtk.Grid)
 	for i, ctrl := range w.controls {
+		class := (ctrl.CID & 0x0fff0000) >> 16
+		grid, ok := tabs[class]
+		if !ok {
+			grid, err = gtk.GridNew()
+			fatal(err)
+			grid.SetBorderWidth(12)
+			grid.SetColumnSpacing(12)
+			grid.SetRowSpacing(12)
+			grid.SetRowHomogeneous(true)
+			grid.SetVAlign(gtk.ALIGN_START)
+			className := ctrlClassNames[class]
+			if len(className) == 0 {
+				className = fmt.Sprintf("Class %03x", class)
+			}
+			notebook.AppendPage(grid, labelNew(className))
+			tabs[class] = grid
+		}
+
 		frame, err := gtk.FrameNew("")
 		fatal(err)
 		if ctrl.Type != "button" {
@@ -635,7 +652,24 @@ func (w *ControlPanelWindow) initControls() {
 		}
 		w.updaters = append(w.updaters, upd)
 	}
-	grid.ShowAll()
+	notebook.ShowAll()
+}
+
+var ctrlClassNames = map[uint32]string{
+	0x098: "User Controls",
+	0x099: "Codec",
+	0x09a: "Camera",
+	0x09b: "FM Modulator",
+	0x09c: "Flash",
+	0x09d: "JPEG",
+	0x09e: "Image Source",
+	0x09f: "Image Processing",
+	0x0a0: "Digital Video",
+	0x0a1: "FM Receiver",
+	0x0a2: "RF Tuner",
+	0x0a3: "Detection",
+	0x0a4: "Stateless Codec",
+	0x0a5: "Colorimetry",
 }
 
 func (w *ControlPanelWindow) createIntControl(parent *gtk.Container, ctrl v4l.ControlInfo) updater {
