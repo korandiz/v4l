@@ -134,13 +134,16 @@ type ControlInfo struct {
 	// Name is the name of the control. (e.g. "Brightness")
 	Name string
 
-	// Type is the type of the control, one of "int", "bool", "enum",
-	// or "button".
+	// Type tells what kind of control this is. It's one of "int", "bool",
+	// "enum", "int-enum", or "button".
 	//   - The valid values of an integer control are determined by Min, Max,
 	//     and Step.
 	//   - A boolean control can only have the values 0 and 1, where 0 means
 	//     "disabled" and 1 means "enabled".
-	//   - Enums can only take values from a predefined set. (see Options)
+	//   - Enums can only take values from a predefined set. The values are
+	//     identifiers which select one of a few named options. (see Options)
+	//   - An "int-enum" is similar to an enum, except that, the options are
+	//     64-bit unsigned integers, rather than strings.
 	//   - Buttons perform some action when pushed, and they don't have a value.
 	//     Reading the value of a button fails, while setting it to any value is
 	//     interpreted as a push.
@@ -156,11 +159,19 @@ type ControlInfo struct {
 	// Default is the default value of the control.
 	Default int32
 
-	// Options is the list of valid values of an enum type control. For other
-	// types it's nil.
+	// Options is the list of valid values of an enum or int-enum type control.
+	// For other types it's nil.
 	Options []struct {
+		// Value is the identifier of this option. (e.g. 0, 1, 2, etc)
 		Value int32
-		Name  string
+
+		// Name is the label of this option. Only valid for enum type controls.
+		// (e.g. "50 Hz", "60 Hz", "Auto")
+		Name string
+
+		// Int64 is the integer value of this option. Only valid for int-enum
+		// type controls. (e.g. 0, 333, 667)
+		Int64 int64
 	}
 }
 
@@ -779,11 +790,13 @@ func (d *device) controlInfo(cid uint32) (ControlInfo, error) {
 		info.Type = "enum"
 	case v4l_ctrlTypeButton:
 		info.Type = "button"
+	case v4l_ctrlTypeIntegerMenu:
+		info.Type = "int-enum"
 	default:
 		return info, errBadControl
 	}
 
-	if qc.typ == v4l_ctrlTypeMenu {
+	if qc.typ == v4l_ctrlTypeMenu || qc.typ == v4l_ctrlTypeIntegerMenu {
 		for i := qc.minimum; i <= qc.maximum; i++ {
 			qm := v4l_querymenu{
 				id:    qc.id,
@@ -798,9 +811,14 @@ func (d *device) controlInfo(cid uint32) (ControlInfo, error) {
 			opt := struct {
 				Value int32
 				Name  string
+				Int64 int64
 			}{
 				Value: int32(qm.index),
-				Name:  qm.name,
+			}
+			if qc.typ == v4l_ctrlTypeMenu {
+				opt.Name = qm.name
+			} else {
+				opt.Int64 = qm.value
 			}
 			info.Options = append(info.Options, opt)
 		}

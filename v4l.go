@@ -65,10 +65,11 @@ const (
 )
 
 const (
-	v4l_ctrlTypeInteger = 1
-	v4l_ctrlTypeBoolean = 2
-	v4l_ctrlTypeMenu    = 3
-	v4l_ctrlTypeButton  = 4
+	v4l_ctrlTypeInteger     = 1
+	v4l_ctrlTypeBoolean     = 2
+	v4l_ctrlTypeMenu        = 3
+	v4l_ctrlTypeButton      = 4
+	v4l_ctrlTypeIntegerMenu = 9
 )
 
 const (
@@ -763,8 +764,6 @@ func (p *v4l_querymenu) get(q unsafe.Pointer) {
 func (p *v4l_querymenu) put(q unsafe.Pointer) {
 	putUint32(q, offs_querymenu_id, p.id)
 	putUint32(q, offs_querymenu_index, p.index)
-	putString(q, offs_querymenu_name, size_querymenu_name, p.name)
-	putInt64(q, offs_querymenu_value, p.value)
 }
 
 func (p *v4l_querymenu) size() int {
