@@ -645,7 +645,7 @@ func (w *ControlPanelWindow) initControls() {
 			upd = w.createIntControl(&frame.Container, ctrl)
 		case "bool":
 			upd = w.createBoolControl(&frame.Container, ctrl)
-		case "enum":
+		case "enum", "int-enum":
 			upd = w.createEnumControl(&frame.Container, ctrl)
 		case "button":
 			upd = w.createButtonControl(&frame.Container, ctrl)
@@ -736,7 +736,11 @@ func (w *ControlPanelWindow) createEnumControl(parent *gtk.Container, ctrl v4l.C
 	fatal(err)
 	parent.Add(comboBox)
 	for _, opt := range ctrl.Options {
-		comboBox.Append("", opt.Name)
+		if ctrl.Type == "enum" {
+			comboBox.Append("", opt.Name)
+		} else {
+			comboBox.Append("", fmt.Sprint(opt.Int64))
+		}
 	}
 	comboBox.Connect("changed", func() {
 		value := ctrl.Options[comboBox.GetActive()].Value
