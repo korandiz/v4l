@@ -263,11 +263,8 @@ func (d *Device) DeviceInfo() (DeviceInfo, error) {
 	return info, nil
 }
 
-// TurnOn initiates a capture session with the device. It may fail with
-// ErrUnsupported. While the device is turned on, its configuration cannot be
-// changed.
-func (d *Device) TurnOn() error {
-	// Switch to progressive format and reset the colorspace to device default.
+// ResetColorspace switches to progressive format and resets the colorspace to device default.
+func (d *Device) ResetColorspace() error {
 	f := v4l_format_pix{typ: v4l_bufTypeVideoCapture}
 	if err := ioctl_gFmt_pix(d.fd, &f); err != nil {
 		return err
@@ -278,8 +275,11 @@ func (d *Device) TurnOn() error {
 	if err := ioctl_sFmt_pix(d.fd, &f); err != nil {
 		return err
 	}
+	return nil
+}
 
-	// Reset cropping.
+// ResetCropping turns off any applied cropping.
+func (d *Device) ResetCropping() error {
 	cc := v4l_cropcap{typ: v4l_bufTypeVideoCapture}
 	switch err := ioctl_cropcap(d.fd, &cc); err {
 	case nil:
@@ -300,7 +300,13 @@ func (d *Device) TurnOn() error {
 	default:
 		return err
 	}
+	return nil
+}
 
+// TurnOn initiates a capture session with the device. It may fail with
+// ErrUnsupported. While the device is turned on, its configuration cannot be
+// changed.
+func (d *Device) TurnOn() error {
 	// Allocate buffers.
 	if err := d.allocBuffers(4); err != nil {
 		return err
